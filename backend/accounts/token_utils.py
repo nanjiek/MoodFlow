@@ -35,9 +35,31 @@ def create_admin_token(admin_user):
     return encode_jwt(payload), expires_at
 
 
+def create_user_token(app_user):
+    now = timezone.now()
+    expires_at = now + JWT_EXPIRES_IN
+    payload = {
+        "sub": str(app_user.pk),
+        "phone": app_user.phone,
+        "token_type": "user",
+        "iat": int(now.timestamp()),
+        "exp": int(expires_at.timestamp()),
+    }
+    return encode_jwt(payload), expires_at
+
+
 def decode_admin_token(token):
     payload = decode_jwt(token)
     if payload.get("token_type") != "admin":
+        raise JWTTokenError("Invalid token type.")
+    if not payload.get("sub"):
+        raise JWTTokenError("Missing subject.")
+    return payload
+
+
+def decode_user_token(token):
+    payload = decode_jwt(token)
+    if payload.get("token_type") != "user":
         raise JWTTokenError("Invalid token type.")
     if not payload.get("sub"):
         raise JWTTokenError("Missing subject.")

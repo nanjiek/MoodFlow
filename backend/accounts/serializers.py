@@ -1,6 +1,8 @@
 from django.db.models import Q
 from rest_framework import serializers
 
+from emotions.models import AppUser
+
 from .models import AdminUser
 
 
@@ -45,3 +47,95 @@ class AdminLoginSerializer(serializers.Serializer):
 
         attrs["admin_user"] = admin_user
         return attrs
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    privacy = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AppUser
+        fields = (
+            "id",
+            "external_id",
+            "nickname",
+            "avatar_url",
+            "gender",
+            "birth_date",
+            "phone",
+            "email",
+            "signature",
+            "anonymous_mode",
+            "emotion_encryption_enabled",
+            "privacy",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = ("id", "created_at", "updated_at", "phone")
+
+    def get_privacy(self, obj):
+        return {
+            "anonymous_mode": obj.anonymous_mode,
+            "emotion_encryption_enabled": obj.emotion_encryption_enabled,
+        }
+
+
+class UserPrivacySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AppUser
+        fields = ("anonymous_mode", "emotion_encryption_enabled")
+
+
+class UserRegisterSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=32)
+    password = serializers.CharField(min_length=6, max_length=128, trim_whitespace=False, write_only=True)
+    nickname = serializers.CharField(max_length=64)
+
+    default_error_messages = {
+        "phone_exists": "This phone number is already registered.",
+    }
+
+    def validate_phone(self, value):
+        normalized = str(value).strip()
+        if AppUser.objects.filter(phone=normalized).exclude(phone="").exists():
+            self.fail("phone_exists")
+        return normalized
+
+    def create(self, validated_data):
+        user = AppUser(
+            phone=validated_data["phone"],
+            nickname=validated_data["nickname"].strip(),
+            external_id=validated_data["phone"],
+            is_active=True,
+        )
+        user.set_password(validated_data["password"])
+        user.save()
+        return user
+
+
+class UserLoginSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=32)
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+    default_error_messages = {
+        "invalid_credentials": "Invalid phone or password.",
+        "disabled": "User is disabled.",
+    }
+
+    def validate(self, attrs):
+        phone = attrs["phone"].strip()
+        password = attrs["password"]
+        app_user = AppUser.objects.filter(phone=phone).order_by("id").first()
+        if app_user is None or not app_user.check_password(password):
+            self.fail("invalid_credentials")
+        if not app_user.is_active:
+            self.fail("disabled")
+        attrs["app_user"] = app_user
+        attrs["phone"] = phone
+        return attrs
+
+
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AppUser
+        fields = ("nickname", "avatar_url", "gender", "birth_date", "email", "signature")
+

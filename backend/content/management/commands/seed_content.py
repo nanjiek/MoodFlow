@@ -6,7 +6,7 @@ from ...models import CompanionContent, SystemConfig
 
 BASE_CONFIGS = {
     "push_frequency": {
-        "value": {"times_per_day": 2},
+        "value": {"times_per_day": 1},
         "description": "Default reminder pushes per day.",
         "is_public": True,
     },
@@ -20,6 +20,51 @@ BASE_CONFIGS = {
         "description": "Consecutive negative-emotion days before emergency attention is suggested.",
         "is_public": False,
     },
+}
+
+EMOTION_CONTENT_PRESETS = {
+    "anxious": (
+        {
+            "content_type": CompanionContent.CONTENT_TYPE_BREATHING,
+            "title": "先把呼吸放慢一点",
+            "body": "试着吸气 4 秒、停 2 秒、呼气 6 秒，连做 3 轮，先把身体从紧绷里拉回来。",
+            "weight": 12,
+        },
+        {
+            "content_type": CompanionContent.CONTENT_TYPE_ADVICE,
+            "title": "只拆下一步就够了",
+            "body": "把最担心的事写下来，再写一个十分钟内能完成的最小动作，先别要求自己一次解决全部。",
+            "weight": 10,
+        },
+    ),
+    "sad": (
+        {
+            "content_type": CompanionContent.CONTENT_TYPE_PHRASE,
+            "title": "先允许自己低落一下",
+            "body": "你不用立刻振作，先把难受放在这里，也是一种很重要的整理。",
+            "weight": 12,
+        },
+        {
+            "content_type": CompanionContent.CONTENT_TYPE_TEMPLATE,
+            "title": "情绪日记小模板",
+            "body": "今天让我最难受的是____。如果有人理解我，我最想让对方知道____。",
+            "weight": 9,
+        },
+    ),
+    "tired": (
+        {
+            "content_type": CompanionContent.CONTENT_TYPE_MUSIC,
+            "title": "切到低刺激模式",
+            "body": "把屏幕亮度调低一点，找一段轻音乐，给自己 10 分钟不处理消息的空档。",
+            "weight": 12,
+        },
+        {
+            "content_type": CompanionContent.CONTENT_TYPE_ADVICE,
+            "title": "先补一点电",
+            "body": "如果现在很累，先做一件最能恢复体力的小事，比如喝水、起身活动、闭眼休息两分钟。",
+            "weight": 10,
+        },
+    ),
 }
 
 
@@ -53,19 +98,22 @@ class Command(BaseCommand):
 
         for tag in tags:
             label = _emotion_label(tag)
-            items = (
-                {
-                    "content_type": CompanionContent.CONTENT_TYPE_PHRASE,
-                    "title": f"{label} grounding phrase",
-                    "body": "Take one slow breath. This feeling can be noticed without being obeyed.",
-                    "weight": 10,
-                },
-                {
-                    "content_type": CompanionContent.CONTENT_TYPE_ADVICE,
-                    "title": f"{label} small next step",
-                    "body": "Write down one thing you need in the next ten minutes, then choose the smallest possible action.",
-                    "weight": 8,
-                },
+            items = EMOTION_CONTENT_PRESETS.get(
+                getattr(tag, "code", ""),
+                (
+                    {
+                        "content_type": CompanionContent.CONTENT_TYPE_PHRASE,
+                        "title": f"{label}时，先慢一点",
+                        "body": "先做一个缓慢呼吸，再用一句话记下此刻最明显的感受。",
+                        "weight": 10,
+                    },
+                    {
+                        "content_type": CompanionContent.CONTENT_TYPE_ADVICE,
+                        "title": f"{label}时的小下一步",
+                        "body": "写下现在最需要的一件小事，然后只做第一步就好。",
+                        "weight": 8,
+                    },
+                ),
             )
             for item in items:
                 _, created = CompanionContent.objects.update_or_create(

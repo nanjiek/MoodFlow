@@ -14,10 +14,16 @@ class EmotionPredictRequest(BaseModel):
 class EmotionPredictResponse(BaseModel):
     label: str
     label_name: str
+    display_name: str
+    display_hint: str
     category: str
     confidence: float
     intensity: float
     keywords: list[str]
+    explanation: str
+    gentle_feedback: str
+    recommended_content_types: list[str]
+    suggested_prompt: str
     model_version: str
     probabilities: dict[str, float]
 
@@ -40,3 +46,5 @@ class TrendResponse(BaseModel):
     summary: str
     dominant_label: str | None = None
     negative_days: int = 0
+    highlights: list[str] = Field(default_factory=list)
+    next_suggestion: str = ""

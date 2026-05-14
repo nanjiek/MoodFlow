@@ -4,11 +4,21 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from common.response import APIResponse
+
 from .audit import log_admin_operation
-from .authentication import AdminJWTAuthentication
-from .permissions import IsAdminAuthenticated
-from .serializers import AdminLoginSerializer, AdminProfileSerializer
-from .token_utils import create_admin_token
+from .authentication import AdminJWTAuthentication, UserJWTAuthentication
+from .permissions import IsAdminAuthenticated, IsAppUserAuthenticated
+from .serializers import (
+    AdminLoginSerializer,
+    AdminProfileSerializer,
+    UserLoginSerializer,
+    UserPrivacySerializer,
+    UserProfileSerializer,
+    UserProfileUpdateSerializer,
+    UserRegisterSerializer,
+)
+from .token_utils import create_admin_token, create_user_token
 
 
 class AdminLoginView(APIView):
@@ -74,6 +84,81 @@ class AdminProfileView(APIView):
 
     def get(self, request):
         return Response(AdminProfileSerializer(request.user).data, status=status.HTTP_200_OK)
+
+
+class UserRegisterView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        serializer = UserRegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        token, expires_at = create_user_token(user)
+        return APIResponse.success(
+            data={
+                "token": token,
+                "token_type": "Bearer",
+                "expires_at": expires_at.isoformat(),
+                "profile": UserProfileSerializer(user).data,
+            },
+            status_code=status.HTTP_201_CREATED,
+        )
+
+
+class UserLoginView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        serializer = UserLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.validated_data["app_user"]
+        token, expires_at = create_user_token(user)
+        return APIResponse.success(
+            data={
+                "token": token,
+                "token_type": "Bearer",
+                "expires_at": expires_at.isoformat(),
+                "profile": UserProfileSerializer(user).data,
+            }
+        )
+
+
+class UserLogoutView(APIView):
+    authentication_classes = [UserJWTAuthentication]
+    permission_classes = [IsAppUserAuthenticated]
+
+    def post(self, request):
+        return APIResponse.success(data={"detail": "Logged out."})
+
+
+class UserProfileView(APIView):
+    authentication_classes = [UserJWTAuthentication]
+    permission_classes = [IsAppUserAuthenticated]
+
+    def get(self, request):
+        return APIResponse.success(data=UserProfileSerializer(request.user).data)
+
+    def patch(self, request):
+        serializer = UserProfileUpdateSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return APIResponse.success(data=UserProfileSerializer(request.user).data)
+
+
+class UserPrivacyView(APIView):
+    authentication_classes = [UserJWTAuthentication]
+    permission_classes = [IsAppUserAuthenticated]
+
+    def get(self, request):
+        return APIResponse.success(data=UserPrivacySerializer(request.user).data)
+
+    def patch(self, request):
+        serializer = UserPrivacySerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return APIResponse.success(data=UserPrivacySerializer(request.user).data)
 
 
 def _request_value(request, key):

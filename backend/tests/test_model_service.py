@@ -14,8 +14,6 @@ from model_service.training.dataset_builder import build_dataset, write_dataset
 
 
 def test_predictor_uses_rule_based_fallback_when_model_is_missing(tmp_path) -> None:
-    pytest.importorskip("joblib")
-
     from model_service.app.predictor import EmotionPredictor
 
     predictor = EmotionPredictor(model_dir=tmp_path)
@@ -25,9 +23,12 @@ def test_predictor_uses_rule_based_fallback_when_model_is_missing(tmp_path) -> N
     assert predictor.ready is False
     assert result["label"] == "anxious"
     assert result["label_name"] == "焦虑"
+    assert result["display_name"] == "有点慌"
     assert result["category"] == "negative"
     assert result["model_version"] == "baseline-untrained"
     assert result["confidence"] > result["probabilities"]["plain"]
+    assert "有点慌" in result["explanation"]
+    assert result["recommended_content_types"][0] == "breathing"
     assert sum(result["probabilities"].values()) == pytest.approx(1.0, abs=0.01)
 
 
@@ -53,7 +54,7 @@ def test_build_dataset_with_small_raw_samples(tmp_path) -> None:
     with chinese_dialogue_path.open("w", encoding="utf-8", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=["text", "emotion"])
         writer.writeheader()
-        writer.writerow({"text": "明天要展示，心里有点紧张", "emotion": "恐懼語調"})
+        writer.writerow({"text": "明天要展示，心里有点紧张", "emotion": "恐惧"})
 
     cped_dir = raw_dir / "cped" / "data" / "CPED"
     cped_dir.mkdir(parents=True)

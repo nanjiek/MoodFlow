@@ -61,7 +61,14 @@ def call_model_service(text: str, selected_label: str | None = None) -> dict[str
 
     started_at = time.perf_counter()
     request_source = "model_service"
-    payload = {"text": text, "selected_label": selected_label}
+    normalized_text = text or ""
+    payload = {"text": normalized_text, "selected_label": selected_label}
+
+    if not normalized_text.strip() and selected_label:
+        result = _rule_based_fallback(normalized_text, selected_label, "blank text shortcut")
+        latency_ms = int((time.perf_counter() - started_at) * 1000)
+        _create_inference_log(normalized_text, result, latency_ms, "rule_fallback")
+        return result
 
     try:
         response = requests.post(

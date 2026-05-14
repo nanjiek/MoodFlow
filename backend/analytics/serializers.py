@@ -25,6 +25,11 @@ class FeatureUsageQuerySerializer(StatisticsQuerySerializer):
     action = serializers.CharField(required=False, allow_blank=True, max_length=80)
 
 
+class TimelineQuerySerializer(StatisticsQuerySerializer):
+    date = serializers.DateField(required=False)
+    refresh = serializers.BooleanField(required=False, default=False)
+
+
 class OperationLogQuerySerializer(serializers.Serializer):
     admin_id = serializers.IntegerField(required=False)
     admin_username = serializers.CharField(required=False, allow_blank=True, max_length=150)

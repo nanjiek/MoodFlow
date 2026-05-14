@@ -50,6 +50,18 @@ class CompanionContentSerializer(serializers.ModelSerializer):
         return detail
 
 
+class CompanionRecommendationQuerySerializer(serializers.Serializer):
+    emotion = serializers.CharField(required=False, allow_blank=False, max_length=32)
+    record_id = serializers.IntegerField(required=False, min_value=1)
+    analysis_id = serializers.IntegerField(required=False, min_value=1)
+    limit = serializers.IntegerField(required=False, min_value=1, max_value=12, default=5)
+    preferred_types = serializers.CharField(required=False, allow_blank=True, max_length=255)
+    refresh = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs):
+        return attrs
+
+
 class SystemConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = SystemConfig

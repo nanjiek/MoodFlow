@@ -106,6 +106,17 @@ def feature_usage(days=30, start_date=None, end_date=None, feature=None, action=
     )
 
 
+def resolve_date_window(days=30, start_date=None, end_date=None):
+    return _resolve_date_window(days=days, start_date=start_date, end_date=end_date)
+
+
+def resolve_day_window(day):
+    day_value = _coerce_date(day)
+    if day_value is None:
+        raise ValueError("Use YYYY-MM-DD for the drill-down date.")
+    return day_value, _day_start(day_value), _day_end(day_value)
+
+
 def _build_overview():
     now = timezone.now()
     today_start = _day_start(timezone.localdate())

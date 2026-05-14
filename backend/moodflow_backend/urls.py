@@ -35,6 +35,16 @@ urlpatterns = [
     path("api/health/", health_check, name="health-check"),
 ]
 
+PUBLIC_APP_MOUNTS = [
+    ("accounts.public_urls", "api/"),
+    ("emotions.public_urls", "api/"),
+    ("content.public_urls", "api/"),
+]
+
+for urls_module, route_prefix in PUBLIC_APP_MOUNTS:
+    if module_exists(urls_module):
+        urlpatterns.append(path(route_prefix, include(urls_module)))
+
 ADMIN_APP_MOUNTS = [
     ("accounts.urls", "api/admin/auth/"),
     ("emotions.urls", "api/admin/emotions/"),

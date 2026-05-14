@@ -20,6 +20,15 @@ SMP_LABEL_MAP = {
 }
 
 CHINESE_DIALOGUE_LABEL_MAP = {
+    "平淡": "plain",
+    "开心": "happy",
+    "悲伤": "sad",
+    "愤怒": "irritable",
+    "惊讶": "expecting",
+    "恐惧": "anxious",
+    "厌恶": "irritable",
+    "疑问": "anxious",
+    "关切": "anxious",
     "平淡語氣": "plain",
     "開心語調": "happy",
     "悲傷語調": "sad",

@@ -2,7 +2,7 @@ from rest_framework import exceptions
 from rest_framework.authentication import BaseAuthentication
 
 from .models import AdminUser
-from .token_utils import JWTExpiredError, JWTTokenError, decode_admin_token
+from .token_utils import JWTExpiredError, JWTTokenError, decode_admin_token, decode_user_token
 
 
 class AdminJWTAuthentication(BaseAuthentication):
@@ -34,3 +34,36 @@ class AdminJWTAuthentication(BaseAuthentication):
             raise exceptions.AuthenticationFailed("Admin user is disabled.")
 
         return admin_user, token
+
+
+class UserJWTAuthentication(BaseAuthentication):
+    keyword = "Bearer"
+
+    def authenticate(self, request):
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+        if not auth_header:
+            return None
+
+        parts = auth_header.split()
+        if len(parts) != 2 or parts[0].lower() != self.keyword.lower():
+            raise exceptions.AuthenticationFailed("Invalid authorization header.")
+
+        token = parts[1]
+        try:
+            payload = decode_user_token(token)
+        except JWTExpiredError as exc:
+            raise exceptions.AuthenticationFailed("User token expired.") from exc
+        except JWTTokenError as exc:
+            raise exceptions.AuthenticationFailed("Invalid user token.") from exc
+
+        from emotions.models import AppUser
+
+        try:
+            app_user = AppUser.objects.get(pk=payload["sub"])
+        except AppUser.DoesNotExist as exc:
+            raise exceptions.AuthenticationFailed("User not found.") from exc
+
+        if not app_user.is_active:
+            raise exceptions.AuthenticationFailed("User is disabled.")
+
+        return app_user, token

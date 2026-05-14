@@ -9,7 +9,7 @@ import jieba
 URL_RE = re.compile(r"https?://\S+|www\.\S+", re.IGNORECASE)
 MENTION_RE = re.compile(r"@\S+")
 SPACE_RE = re.compile(r"\s+")
-KEEP_RE = re.compile(r"[^\u4e00-\u9fffA-Za-z0-9，。！？!?、,.；;：:（）()《》<>~～]+")
+KEEP_RE = re.compile(r"[^\u4e00-\u9fffA-Za-z0-9，。！？；：（）()、《》“”‘’—\-]+")
 
 STOPWORDS = {
     "的",
@@ -24,7 +24,7 @@ STOPWORDS = {
     "你们",
     "他们",
     "一个",
-    "一下",
+    "一些",
     "有点",
     "真的",
     "就是",

@@ -1,3 +1,5 @@
+from django.contrib.auth.hashers import check_password as django_check_password
+from django.contrib.auth.hashers import make_password
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -25,6 +27,10 @@ class AppUser(models.Model):
     birth_date = models.DateField("生日", blank=True, null=True)
     phone = models.CharField("手机号", max_length=32, blank=True)
     email = models.EmailField("邮箱", blank=True)
+    password_hash = models.CharField("密码哈希", max_length=128, blank=True)
+    signature = models.CharField("个性签名", max_length=255, blank=True)
+    anonymous_mode = models.BooleanField("是否匿名模式", default=False)
+    emotion_encryption_enabled = models.BooleanField("情绪加密开关", default=False)
     is_active = models.BooleanField("是否启用", default=True)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
@@ -37,6 +43,18 @@ class AppUser(models.Model):
 
     def __str__(self):
         return self.nickname
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    def set_password(self, raw_password):
+        self.password_hash = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        if not self.password_hash:
+            return False
+        return django_check_password(raw_password, self.password_hash)
 
 
 class EmotionTag(models.Model):
