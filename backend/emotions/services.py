@@ -12,13 +12,15 @@ from mlops.services import call_model_service
 
 from .models import EmotionAnalysis, EmotionRecord
 from .presentation import build_weekly_summary, emotion_presentation
+from .security import decrypt_text
 
 
 NEGATIVE_LABELS = {"anxious", "sad", "irritable", "tired"}
 
 
 def sync_record_analysis(record: EmotionRecord) -> EmotionAnalysis:
-    result = call_model_service(record.emotion_text or "", selected_label=record.tag.code)
+    plain_text = decrypt_text(record.emotion_text or "", is_encrypted=record.is_encrypted)
+    result = call_model_service(plain_text, selected_label=record.tag.code)
     predicted_label = str(result.get("label") or record.tag.code)
     confidence = _bounded_float(result.get("confidence"), 0)
     stored_intensity = min(10, max(0, round(_bounded_float(result.get("intensity"), confidence) * 10)))

@@ -21,14 +21,22 @@ from common.pagination import StandardResultsSetPagination
 from common.response import APIResponse
 from mlops.services import call_model_service
 
-from .models import AppUser, EmotionAnalysis, EmotionRecord, EmotionTag
+from .exports import create_export_task
+from .models import AppUser, EmotionAnalysis, EmotionDataExportTask, EmotionRecord, EmotionTag, UserDeviceToken
 from .presentation import build_weekly_summary, emotion_growth_score, emotion_presentation, quick_entry_guide
+from .reminders import get_or_create_reminder_preference, register_device_token, trigger_user_reminder
+from .security import decrypt_text
 from .serializers import (
     AppUserSerializer,
+    EmotionExportCreateSerializer,
+    EmotionExportTaskSerializer,
     EmotionAnalysisSerializer,
     EmotionRecordSerializer,
     EmotionTagSerializer,
+    ReminderDispatchLogSerializer,
+    UserDeviceTokenSerializer,
     UserEmotionRecordWriteSerializer,
+    UserReminderPreferenceSerializer,
 )
 
 
@@ -92,7 +100,8 @@ def _resolve_trend(record, intensity):
 
 
 def _sync_record_analysis(record):
-    prediction = call_model_service(record.emotion_text or "", selected_label=record.tag.code)
+    plain_text = decrypt_text(record.emotion_text or "", is_encrypted=record.is_encrypted)
+    prediction = call_model_service(plain_text, selected_label=record.tag.code)
     intensity = _normalize_intensity(prediction.get("intensity"))
     defaults = {
         "predicted_label": str(prediction.get("label") or record.tag.code),
@@ -120,9 +129,9 @@ def _save_analysis_feedback(analysis, corrected_label, accepted, note):
     return raw_result["user_feedback"]
 
 
-def _emotion_report_payload(queryset, start_at, end_at):
+def _emotion_report_payload(queryset, start_at, end_at, request=None):
     records = list(queryset.select_related("tag", "analysis"))
-    serialized_records = EmotionRecordSerializer(records, many=True).data
+    serialized_records = EmotionRecordSerializer(records, many=True, context={"request": request} if request else {}).data
 
     label_rows = []
     for record in records:
@@ -407,9 +416,9 @@ class UserEmotionRecordViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = EmotionRecordSerializer(page, many=True)
+            serializer = EmotionRecordSerializer(page, many=True, context={"request": request})
             return self.get_paginated_response(serializer.data)
-        serializer = EmotionRecordSerializer(queryset, many=True)
+        serializer = EmotionRecordSerializer(queryset, many=True, context={"request": request})
         return APIResponse.success(data=serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
@@ -425,7 +434,7 @@ class UserEmotionRecordViewSet(viewsets.ModelViewSet):
         _sync_record_analysis(record)
         record.refresh_from_db()
         log_feature_usage("emotion_record", user_id=str(request.user.pk), action="create", metadata={"record_id": record.id})
-        output = EmotionRecordSerializer(record).data
+        output = EmotionRecordSerializer(record, context={"request": request}).data
         return APIResponse.success(data=output, status_code=status.HTTP_201_CREATED, message="created")
 
     @transaction.atomic
@@ -440,7 +449,7 @@ class UserEmotionRecordViewSet(viewsets.ModelViewSet):
         _sync_record_analysis(record)
         record.refresh_from_db()
         log_feature_usage("emotion_record", user_id=str(request.user.pk), action="update", metadata={"record_id": record.id})
-        output = EmotionRecordSerializer(record).data
+        output = EmotionRecordSerializer(record, context={"request": request}).data
         return APIResponse.success(data=output, message="updated")
 
     @transaction.atomic
@@ -533,7 +542,7 @@ class UserEmotionRecordViewSet(viewsets.ModelViewSet):
         start_at = timezone.make_aware(datetime.combine(target_day, time.min), timezone.get_current_timezone())
         end_at = timezone.make_aware(datetime.combine(target_day, time.max), timezone.get_current_timezone())
         queryset = self.get_queryset().filter(recorded_at__gte=start_at, recorded_at__lte=end_at)
-        serializer = EmotionRecordSerializer(queryset, many=True)
+        serializer = EmotionRecordSerializer(queryset, many=True, context={"request": request})
         log_feature_usage(
             feature="emotion_history_by_day",
             action="view",
@@ -558,7 +567,7 @@ class UserEmotionDailyReportView(APIView):
         start_at = timezone.make_aware(datetime.combine(report_date, time.min), timezone.get_current_timezone())
         end_at = timezone.make_aware(datetime.combine(report_date, time.max), timezone.get_current_timezone())
         queryset = EmotionRecord.objects.filter(user=request.user, recorded_at__gte=start_at, recorded_at__lte=end_at)
-        payload = _emotion_report_payload(queryset, start_at, end_at)
+        payload = _emotion_report_payload(queryset, start_at, end_at, request=request)
         payload["date"] = report_date.isoformat()
         return APIResponse.success(data=payload)
 
@@ -578,7 +587,7 @@ class UserEmotionWeeklyReportView(APIView):
         start_at = timezone.make_aware(datetime.combine(start_day, time.min), timezone.get_current_timezone())
         end_at = timezone.make_aware(datetime.combine(end_day, time.max), timezone.get_current_timezone())
         queryset = EmotionRecord.objects.filter(user=request.user, recorded_at__gte=start_at, recorded_at__lte=end_at)
-        payload = _emotion_report_payload(queryset, start_at, end_at)
+        payload = _emotion_report_payload(queryset, start_at, end_at, request=request)
         payload["start_date"] = start_day.isoformat()
         payload["end_date"] = end_day.isoformat()
         return APIResponse.success(data=payload)
@@ -664,6 +673,94 @@ class UserEmotionGrowthCurveView(APIView):
         )
         return APIResponse.success(
             data=payload
+        )
+
+
+class UserDeviceTokenView(APIView):
+    authentication_classes = [UserJWTAuthentication]
+    permission_classes = [IsAppUserAuthenticated]
+
+    def get(self, request):
+        devices = request.user.device_tokens.order_by("-updated_at", "-id")
+        return APIResponse.success(data=UserDeviceTokenSerializer(devices, many=True).data)
+
+    def post(self, request):
+        serializer = UserDeviceTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        device = register_device_token(user=request.user, **serializer.validated_data)
+        log_feature_usage("device_token", action="register", user_id=str(request.user.pk), metadata={"device_id": device.id})
+        return APIResponse.success(data=UserDeviceTokenSerializer(device).data, message="registered")
+
+
+class UserReminderPreferenceView(APIView):
+    authentication_classes = [UserJWTAuthentication]
+    permission_classes = [IsAppUserAuthenticated]
+
+    def get(self, request):
+        preference = get_or_create_reminder_preference(request.user)
+        return APIResponse.success(data=UserReminderPreferenceSerializer(preference).data)
+
+    def patch(self, request):
+        preference = get_or_create_reminder_preference(request.user)
+        serializer = UserReminderPreferenceSerializer(preference, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        log_feature_usage("emotion_reminder", action="preference_update", user_id=str(request.user.pk))
+        return APIResponse.success(data=UserReminderPreferenceSerializer(preference).data)
+
+
+class UserReminderTriggerView(APIView):
+    authentication_classes = [UserJWTAuthentication]
+    permission_classes = [IsAppUserAuthenticated]
+
+    def post(self, request):
+        logs = trigger_user_reminder(request.user)
+        return APIResponse.success(data=ReminderDispatchLogSerializer(logs, many=True).data, message="triggered")
+
+
+class UserEmotionExportView(APIView):
+    authentication_classes = [UserJWTAuthentication]
+    permission_classes = [IsAppUserAuthenticated]
+
+    def get(self, request):
+        tasks = request.user.export_tasks.order_by("-created_at", "-id")
+        return APIResponse.success(data=EmotionExportTaskSerializer(tasks, many=True).data)
+
+    def post(self, request):
+        serializer = EmotionExportCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        task = create_export_task(user=request.user, **serializer.validated_data)
+        log_feature_usage(
+            "emotion_export",
+            action="create",
+            user_id=str(request.user.pk),
+            metadata={"task_id": task.id, "format": task.file_format, "record_count": task.record_count},
+        )
+        payload = {
+            **EmotionExportTaskSerializer(task).data,
+            "content": task.content,
+        }
+        return APIResponse.success(data=payload, status_code=status.HTTP_201_CREATED, message="exported")
+
+
+class UserEmotionExportDownloadView(APIView):
+    authentication_classes = [UserJWTAuthentication]
+    permission_classes = [IsAppUserAuthenticated]
+
+    def get(self, request, task_id):
+        task = request.user.export_tasks.filter(pk=task_id).first()
+        if task is None:
+            raise Http404("Export task does not exist.")
+        if task.status != EmotionDataExportTask.Status.COMPLETED:
+            raise ValidationError({"task_id": "Export task is not ready."})
+        return APIResponse.success(
+            data={
+                "id": task.id,
+                "file_name": task.file_name,
+                "file_format": task.file_format,
+                "content": task.content,
+                "record_count": task.record_count,
+            }
         )
 
 
@@ -792,7 +889,7 @@ def _growth_curve_drilldown(user, day):
             {
                 "id": record.id,
                 "recorded_at": timezone.localtime(record.recorded_at).isoformat(),
-                "emotion_text": record.emotion_text,
+                "emotion_text": decrypt_text(record.emotion_text, is_encrypted=record.is_encrypted),
                 "source": record.source,
                 "is_collect": record.is_collect,
                 "tag": emotion_presentation(record.tag.code),
