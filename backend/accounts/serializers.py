@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from emotions.models import AppUser
 
-from .models import AdminUser
+from .models import AdminUser, UserSocialAccount
 
 
 class AdminProfileSerializer(serializers.ModelSerializer):
@@ -51,6 +51,7 @@ class AdminLoginSerializer(serializers.Serializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     privacy = serializers.SerializerMethodField()
+    social_accounts = serializers.SerializerMethodField()
 
     class Meta:
         model = AppUser
@@ -67,6 +68,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "anonymous_mode",
             "emotion_encryption_enabled",
             "privacy",
+            "social_accounts",
             "created_at",
             "updated_at",
         )
@@ -77,6 +79,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "anonymous_mode": obj.anonymous_mode,
             "emotion_encryption_enabled": obj.emotion_encryption_enabled,
         }
+
+    def get_social_accounts(self, obj):
+        accounts = getattr(obj, "social_accounts", None)
+        if accounts is None:
+            accounts = obj.social_accounts.all()
+        return UserSocialAccountSerializer(accounts, many=True).data
 
 
 class UserPrivacySerializer(serializers.ModelSerializer):
@@ -139,3 +147,50 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
         model = AppUser
         fields = ("nickname", "avatar_url", "gender", "birth_date", "email", "signature")
 
+
+class UserSocialAccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserSocialAccount
+        fields = (
+            "id",
+            "provider",
+            "open_id",
+            "union_id",
+            "app_id",
+            "nickname",
+            "avatar_url",
+            "last_login_at",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class SocialLoginSerializer(serializers.Serializer):
+    state = serializers.CharField(max_length=128)
+    auth_code = serializers.CharField(required=False, allow_blank=True)
+    open_id = serializers.CharField(required=False, allow_blank=True)
+    mock_open_id = serializers.CharField(required=False, allow_blank=True)
+    union_id = serializers.CharField(required=False, allow_blank=True)
+    nickname = serializers.CharField(required=False, allow_blank=True, max_length=64)
+    avatar_url = serializers.URLField(required=False, allow_blank=True)
+
+
+class PasswordResetSendSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=32)
+
+    def validate_phone(self, value):
+        return str(value).strip()
+
+
+class PasswordResetVerifySerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=32)
+    request_id = serializers.CharField(max_length=64)
+    code = serializers.CharField(max_length=12)
+
+    def validate_phone(self, value):
+        return str(value).strip()
+
+
+class PasswordResetResetSerializer(PasswordResetVerifySerializer):
+    new_password = serializers.CharField(min_length=6, max_length=128, trim_whitespace=False, write_only=True)

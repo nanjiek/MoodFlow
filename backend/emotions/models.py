@@ -171,3 +171,119 @@ class EmotionAnalysis(models.Model):
 
     def __str__(self):
         return f"{self.record_id}:{self.predicted_label}({self.confidence:.2f})"
+
+
+class UserReminderPreference(models.Model):
+    user = models.OneToOneField(AppUser, related_name="reminder_preference", on_delete=models.CASCADE)
+    enabled = models.BooleanField(default=True)
+    timezone = models.CharField(max_length=64, default="Asia/Shanghai")
+    reminder_time = models.TimeField(default="09:00")
+    quiet_hours_start = models.TimeField(default="22:00")
+    quiet_hours_end = models.TimeField(default="08:00")
+    frequency_per_day = models.PositiveSmallIntegerField(default=1)
+    preferred_content_types = models.JSONField(default=list, blank=True)
+    last_triggered_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "emotions_user_reminder_preference"
+        ordering = ("user_id",)
+
+    def __str__(self):
+        return f"reminder:{self.user_id}"
+
+
+class UserDeviceToken(models.Model):
+    class Platform(models.TextChoices):
+        IOS = "ios", "iOS"
+        ANDROID = "android", "Android"
+        WEB = "web", "Web"
+
+    user = models.ForeignKey(AppUser, related_name="device_tokens", on_delete=models.CASCADE)
+    token = models.CharField(max_length=512, unique=True)
+    platform = models.CharField(max_length=16, choices=Platform.choices, default=Platform.ANDROID)
+    device_id = models.CharField(max_length=128, blank=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+    last_seen_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "emotions_user_device_token"
+        ordering = ("-updated_at", "-id")
+        indexes = (
+            models.Index(fields=("user", "is_active"), name="emo_dev_user_active_idx"),
+            models.Index(fields=("platform", "is_active"), name="emo_dev_platform_idx"),
+        )
+
+    def __str__(self):
+        return f"{self.user_id}:{self.platform}:{self.device_id or self.id}"
+
+
+class ReminderDispatchLog(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SENT = "sent", "Sent"
+        FAILED = "failed", "Failed"
+        RETRYING = "retrying", "Retrying"
+
+    user = models.ForeignKey(AppUser, related_name="reminder_dispatch_logs", on_delete=models.CASCADE)
+    device = models.ForeignKey(UserDeviceToken, related_name="dispatch_logs", null=True, blank=True, on_delete=models.SET_NULL)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
+    payload = models.JSONField(default=dict, blank=True)
+    response_payload = models.JSONField(default=dict, blank=True)
+    attempt_count = models.PositiveSmallIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+    next_retry_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "emotions_reminder_dispatch_log"
+        ordering = ("-created_at", "-id")
+        indexes = (
+            models.Index(fields=("user", "status"), name="emo_rem_user_status_idx"),
+            models.Index(fields=("status", "next_retry_at"), name="emo_rem_retry_idx"),
+        )
+
+    def __str__(self):
+        return f"reminder:{self.user_id}:{self.status}"
+
+
+class EmotionDataExportTask(models.Model):
+    class Format(models.TextChoices):
+        JSON = "json", "JSON"
+        CSV = "csv", "CSV"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    user = models.ForeignKey(AppUser, related_name="export_tasks", on_delete=models.CASCADE)
+    file_format = models.CharField(max_length=16, choices=Format.choices, db_index=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
+    start_at = models.DateTimeField()
+    end_at = models.DateTimeField()
+    record_count = models.PositiveIntegerField(default=0)
+    file_name = models.CharField(max_length=255, blank=True)
+    content = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    error_message = models.TextField(blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "emotions_data_export_task"
+        ordering = ("-created_at", "-id")
+        indexes = (
+            models.Index(fields=("user", "status"), name="emo_exp_user_status_idx"),
+            models.Index(fields=("file_format", "created_at"), name="emo_exp_format_time_idx"),
+        )
+
+    def __str__(self):
+        return f"export:{self.user_id}:{self.file_format}:{self.status}"

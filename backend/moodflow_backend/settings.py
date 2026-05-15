@@ -6,6 +6,8 @@ import os
 from importlib.util import find_spec
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -171,6 +173,28 @@ CORS_ALLOW_CREDENTIALS = env_bool("CORS_ALLOW_CREDENTIALS", True)
 MODEL_SERVICE_URL = os.getenv("MODEL_SERVICE_URL", "http://localhost:8010")
 MODEL_SERVICE_TIMEOUT = float(os.getenv("MODEL_SERVICE_TIMEOUT", "3"))
 
+FIELD_ENCRYPTION_KEY = os.getenv("MOODFLOW_FIELD_ENCRYPTION_KEY", "")
+FIELD_ENCRYPTION_ALLOW_FALLBACK = env_bool("MOODFLOW_FIELD_ENCRYPTION_ALLOW_FALLBACK", DEBUG)
+
+SOCIAL_LOGIN_STATE_TTL_SECONDS = int(os.getenv("SOCIAL_LOGIN_STATE_TTL_SECONDS", "600"))
+SOCIAL_LOGIN_MOCK_MODE = env_bool("SOCIAL_LOGIN_MOCK_MODE", DEBUG)
+WECHAT_APP_ID = os.getenv("WECHAT_APP_ID", "")
+WECHAT_APP_SECRET = os.getenv("WECHAT_APP_SECRET", "")
+QQ_APP_ID = os.getenv("QQ_APP_ID", "")
+QQ_APP_SECRET = os.getenv("QQ_APP_SECRET", "")
+
+PASSWORD_RESET_CODE_TTL_SECONDS = int(os.getenv("PASSWORD_RESET_CODE_TTL_SECONDS", "300"))
+PASSWORD_RESET_CODE_MAX_ATTEMPTS = int(os.getenv("PASSWORD_RESET_CODE_MAX_ATTEMPTS", "5"))
+PASSWORD_RESET_SEND_COOLDOWN_SECONDS = int(os.getenv("PASSWORD_RESET_SEND_COOLDOWN_SECONDS", "60"))
+PASSWORD_RESET_DAILY_LIMIT = int(os.getenv("PASSWORD_RESET_DAILY_LIMIT", "10"))
+PASSWORD_RESET_DEBUG_CODE = os.getenv("PASSWORD_RESET_DEBUG_CODE", "")
+PASSWORD_RESET_EXPOSE_DEBUG_CODE = env_bool("PASSWORD_RESET_EXPOSE_DEBUG_CODE", False)
+
+FIREBASE_PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID", "")
+FIREBASE_CREDENTIALS_JSON = os.getenv("FIREBASE_CREDENTIALS_JSON", "")
+FIREBASE_MOCK_MODE = env_bool("FIREBASE_MOCK_MODE", DEBUG)
+REMINDER_RETRY_DELAY_SECONDS = int(os.getenv("REMINDER_RETRY_DELAY_SECONDS", "300"))
+
 
 def redis_location() -> str | None:
     if os.getenv("REDIS_URL"):
@@ -212,3 +236,24 @@ LOGGING = {
         "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
     },
 }
+
+
+def validate_runtime_configuration() -> None:
+    if DEBUG:
+        return
+
+    if not FIELD_ENCRYPTION_KEY.strip():
+        raise ImproperlyConfigured(
+            "MOODFLOW_FIELD_ENCRYPTION_KEY must be configured when DJANGO_DEBUG is false."
+        )
+    if FIELD_ENCRYPTION_ALLOW_FALLBACK:
+        raise ImproperlyConfigured(
+            "MOODFLOW_FIELD_ENCRYPTION_ALLOW_FALLBACK must be false when DJANGO_DEBUG is false."
+        )
+    if PASSWORD_RESET_EXPOSE_DEBUG_CODE or PASSWORD_RESET_DEBUG_CODE:
+        raise ImproperlyConfigured(
+            "Password reset debug codes must be disabled when DJANGO_DEBUG is false."
+        )
+
+
+validate_runtime_configuration()

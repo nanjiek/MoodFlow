@@ -36,6 +36,25 @@ python manage.py seed_model_versions
 
 执行后确认管理员账号、情绪标签、陪伴内容、树洞审核样例都已写入。
 
+## 3.1 Production Readiness
+
+- Set `MOODFLOW_FIELD_ENCRYPTION_KEY` before starting Django with `DJANGO_DEBUG=false`.
+- Keep `MOODFLOW_FIELD_ENCRYPTION_ALLOW_FALLBACK=false` in production so encrypted fields never silently downgrade to plaintext.
+- Keep `PASSWORD_RESET_EXPOSE_DEBUG_CODE=false` and do not set `PASSWORD_RESET_DEBUG_CODE` in production.
+- When enabling field encryption for an existing production database for the first time, run:
+
+```bash
+cd backend
+python manage.py encrypt_legacy_emotion_records
+```
+
+- Schedule reminder dispatch in production with cron or an equivalent scheduler. Example:
+
+```bash
+cd backend
+python manage.py dispatch_reminders --limit=200 --retry-limit=50
+```
+
 ## 4. 训练
 
 ```bash
