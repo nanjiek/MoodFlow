@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "MoodFlow",
+    "slug": "moodflow-mobile",
+    "scheme": "moodflow",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.moodflow.mobile"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
