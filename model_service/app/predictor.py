@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import joblib
+import numpy as np
 
 from model_service.app.labels import LABEL_ZH, MOODFLOW_LABELS, label_info
 from model_service.app.text_utils import extract_keywords, normalize_text
@@ -31,8 +32,10 @@ class PredictorNotReady(RuntimeError):
 
 class EmotionPredictor:
     def __init__(self, model_dir: str | os.PathLike[str] | None = None) -> None:
-        self.model_dir = Path(model_dir or os.getenv("MODEL_DIR", "model_service/artifacts/baseline"))
+        self.model_dir = Path(model_dir or os.getenv("MODEL_DIR", "model_service/artifacts/baseline-clean-v4"))
         self.pipeline: Any | None = None
+        self.transformer_model: Any | None = None
+        self.transformer_tokenizer: Any | None = None
         self.metadata: dict[str, Any] = {}
         self.load()
 
@@ -41,12 +44,26 @@ class EmotionPredictor:
         metadata_path = self.model_dir / "metadata.json"
         if model_path.exists():
             self.pipeline = joblib.load(model_path)
+        elif (self.model_dir / "config.json").exists():
+            self._load_transformer_artifact()
         if metadata_path.exists():
             self.metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
 
+    def _load_transformer_artifact(self) -> None:
+        try:
+            import torch
+            from transformers import AutoModelForSequenceClassification, AutoTokenizer
+        except ImportError:
+            return
+
+        self.transformer_tokenizer = AutoTokenizer.from_pretrained(str(self.model_dir))
+        self.transformer_model = AutoModelForSequenceClassification.from_pretrained(str(self.model_dir))
+        self.transformer_model.eval()
+        self._torch = torch
+
     @property
     def ready(self) -> bool:
-        return self.pipeline is not None
+        return self.pipeline is not None or self.transformer_model is not None
 
     @property
     def version(self) -> str:
@@ -58,6 +75,8 @@ class EmotionPredictor:
             normalized = text.strip()
 
         if not self.pipeline:
+            if self.transformer_model is not None and self.transformer_tokenizer is not None:
+                return self._transformer_predict(normalized, selected_label)
             return self._rule_based_predict(normalized, selected_label)
 
         labels = list(getattr(self.pipeline, "classes_", [])) or MOODFLOW_LABELS
@@ -74,6 +93,33 @@ class EmotionPredictor:
         label = max(probabilities, key=probabilities.get)
         confidence = float(probabilities[label])
         return self._format_result(label, confidence, probabilities, normalized)
+
+    def _transformer_predict(self, text: str, selected_label: str | None = None) -> dict[str, Any]:
+        encoded = self.transformer_tokenizer(
+            text,
+            truncation=True,
+            max_length=160,
+            return_tensors="pt",
+        )
+        with self._torch.no_grad():
+            outputs = self.transformer_model(**encoded)
+            logits = outputs.logits.detach().cpu().numpy()[0]
+        probabilities = self._softmax_probabilities(logits)
+        probabilities = self._apply_domain_calibration(text, probabilities, selected_label)
+        label = max(probabilities, key=probabilities.get)
+        confidence = float(probabilities[label])
+        return self._format_result(label, confidence, probabilities, text)
+
+    def _softmax_probabilities(self, logits: np.ndarray) -> dict[str, float]:
+        config_labels = getattr(self.transformer_model.config, "id2label", {}) if self.transformer_model else {}
+        labels = [config_labels.get(idx, MOODFLOW_LABELS[idx]) for idx in range(len(logits))]
+        exp_logits = np.exp(logits - np.max(logits))
+        scores = exp_logits / (np.sum(exp_logits) or 1.0)
+        return {
+            str(label): float(score)
+            for label, score in zip(labels, scores)
+            if str(label) in MOODFLOW_LABELS
+        }
 
     def _apply_domain_calibration(
         self,

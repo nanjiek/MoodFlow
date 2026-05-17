@@ -29,7 +29,7 @@ export default function RecordsTabScreen() {
   return (
     <Screen>
       <Heading>记录</Heading>
-      <BodyText>列表、筛选、收藏、查看分析与编辑入口全部走真实后端。</BodyText>
+      <BodyText>在这里查看你的情绪记录，也可以按情绪筛选、收藏和回看分析。</BodyText>
       <Button title="新建记录" onPress={() => router.push("/(app)/record/new")} />
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
         <Chip label="全部" selected={!selectedLabel} onPress={() => setSelectedLabel(undefined)} />

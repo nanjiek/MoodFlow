@@ -15,12 +15,12 @@ from mlops.models import ModelVersion
 
 
 class Command(BaseCommand):
-    help = "Seed model version metadata from model_service/artifacts/baseline/metadata.json."
+    help = "Seed model version metadata from model_service/artifacts/baseline-clean-v4/metadata.json."
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--metadata",
-            default="model_service/artifacts/baseline/metadata.json",
+            default="model_service/artifacts/baseline-clean-v4/metadata.json",
             help="Path to metadata.json under a model artifact directory.",
         )
         parser.add_argument("--name", default="", help="Model name override.")

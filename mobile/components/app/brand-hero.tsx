@@ -5,9 +5,9 @@ import { BodyText, CaptionText, Heading } from "@/components/ui/text";
 import { colors, radius, spacing } from "@/constants/theme";
 
 export function BrandHero({
-  eyebrow = "MoodFlow 移动端展示版",
-  title = "把情绪记录、分析和成长回看放进一只手里。",
-  description = "真实接口优先，可演示、可联调、主要流程可跑通。",
+  eyebrow = "MoodFlow",
+  title = "给情绪留一处可以慢慢回看的地方。",
+  description = "记录当下感受，回看情绪变化，也给自己一点温和的回应。",
 }: {
   eyebrow?: string;
   title?: string;

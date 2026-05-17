@@ -39,7 +39,7 @@ export default function ForgotVerifyCodeScreen() {
     <Screen>
       <Heading>校验验证码</Heading>
       <BodyText>输入收到的验证码后，才能进入重置密码步骤。</BodyText>
-      {params.debugCode ? <InlineAlert message={`当前环境返回了调试验证码：${params.debugCode}`} tone="warning" /> : null}
+      {params.debugCode ? <InlineAlert message={`当前环境提供了验证码参考：${params.debugCode}`} tone="warning" /> : null}
       {error ? <InlineAlert message={error} tone="danger" /> : null}
       <Input label="验证码" value={code} onChangeText={setCode} keyboardType="number-pad" />
       <Button title="继续重置密码" onPress={handleVerify} loading={loading} />

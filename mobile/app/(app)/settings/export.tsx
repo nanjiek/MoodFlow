@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system/legacy";
+import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +11,21 @@ import { Screen } from "@/components/ui/screen";
 import { BodyText, Heading, Subheading } from "@/components/ui/text";
 import { EXPORT_COPY } from "@/constants/content";
 import { createExportTask, downloadExport, fetchExportTasks } from "@/lib/api/emotions";
+
+function formatTaskStatus(status: string) {
+  switch (status) {
+    case "pending":
+      return "待处理";
+    case "processing":
+      return "处理中";
+    case "completed":
+      return "已完成";
+    case "failed":
+      return "失败";
+    default:
+      return status;
+  }
+}
 
 export default function ExportSettingsScreen() {
   const queryClient = useQueryClient();
@@ -45,20 +60,20 @@ export default function ExportSettingsScreen() {
 
   return (
     <Screen>
-      <Heading>Export Data</Heading>
+      <Heading>导出数据</Heading>
       <InlineAlert message={EXPORT_COPY} />
-      <Input label="Format" value={format} onChangeText={(value) => setFormat(value === "csv" ? "csv" : "json")} />
-      <Input label="Start At" value={startAt} onChangeText={setStartAt} />
-      <Input label="End At" value={endAt} onChangeText={setEndAt} />
-      <Button title="Create Export Task" onPress={() => createMutation.mutate()} loading={createMutation.isPending} />
+      <Input label="导出格式" value={format} onChangeText={(value) => setFormat(value === "csv" ? "csv" : "json")} />
+      <Input label="开始时间" value={startAt} onChangeText={setStartAt} />
+      <Input label="结束时间" value={endAt} onChangeText={setEndAt} />
+      <Button title="创建导出任务" onPress={() => createMutation.mutate()} loading={createMutation.isPending} />
       {(exportQuery.data ?? []).map((task) => (
         <Card key={task.id}>
           <Subheading>{task.file_name}</Subheading>
           <BodyText>
-            {task.file_format.toUpperCase()} | {task.status} | {task.record_count} records
+            {task.file_format.toUpperCase()} | {formatTaskStatus(task.status)} | {task.record_count} 条记录
           </BodyText>
-          <BodyText>{task.completed_at ? `Completed: ${task.completed_at}` : "Processing or already returned inline content"}</BodyText>
-          <Button title="Preview And Share" tone="soft" onPress={() => downloadMutation.mutate(task.id)} />
+          <BodyText>{task.completed_at ? `完成时间：${task.completed_at}` : "处理中，或已可直接在应用内预览。"}</BodyText>
+          <Button title="预览并分享" tone="soft" onPress={() => downloadMutation.mutate(task.id)} />
         </Card>
       ))}
     </Screen>

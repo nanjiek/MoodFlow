@@ -5,7 +5,7 @@ BACKEND_RUN_CMD ?= python manage.py runserver 0.0.0.0:8000
 MODEL_RUN_CMD ?= uvicorn model_service.app.main:app --host 0.0.0.0 --port 8010
 MIGRATE_CMD ?= python manage.py migrate
 SEED_CMD ?= sh -c "python manage.py seed_admin && python manage.py seed_emotions && python manage.py seed_content && python manage.py seed_tree_holes && python manage.py seed_usage_logs && python manage.py seed_model_versions"
-TRAIN_BASELINE_CMD ?= sh -c "python -m model_service.training.dataset_builder --raw-dir /app/data/raw --output /tmp/moodflow_emotions.csv && python -m model_service.training.train_baseline --dataset /tmp/moodflow_emotions.csv --output-dir /app/model_service/artifacts/baseline"
+TRAIN_BASELINE_CMD ?= sh -c "python -m model_service.training.dataset_builder --raw-dir /app/data/raw --output /tmp/moodflow_emotions.csv && python -m model_service.training.train_baseline --dataset /tmp/moodflow_emotions.csv --output-dir /app/model_service/artifacts/baseline-clean-v4"
 BACKEND_TEST_CMD ?= python -m pytest tests -q
 
 .PHONY: help up down logs migrate seed train-baseline run-backend run-model test lint healthcheck

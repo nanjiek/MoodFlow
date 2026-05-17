@@ -26,7 +26,7 @@ export default function HomeTabScreen() {
   return (
     <Screen>
       <Heading>今天想先记下哪一刻？</Heading>
-      <BodyText>首页保留真实接口摘要，同时把快速记录入口放在最显眼的位置。</BodyText>
+      <BodyText>先用一句话记下此刻的感受，后面再慢慢补充也可以。</BodyText>
       <Button title="记录此刻情绪" onPress={() => router.push("/(app)/record/new")} />
       <Card>
         <CaptionText>最近一次情绪摘要</CaptionText>
@@ -36,8 +36,8 @@ export default function HomeTabScreen() {
       </Card>
       <Card>
         <CaptionText>提醒状态摘要</CaptionText>
-        <Subheading>应用内联调版本</Subheading>
-        <BodyText>提醒偏好、手动触发与设备列表都接真实接口，系统推送闭环仍在后续接入。</BodyText>
+        <Subheading>{dailyQuery.data ? "提醒设置已同步" : "提醒功能可用"}</Subheading>
+        <BodyText>你可以调整提醒时间、频率和偏好内容，让记录节奏更贴合自己的日常。</BodyText>
         <Button title="前往提醒设置" tone="soft" onPress={() => router.push("/(app)/settings/reminders")} />
       </Card>
       <View style={styles.sectionHeader}>

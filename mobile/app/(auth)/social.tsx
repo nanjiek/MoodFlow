@@ -9,17 +9,17 @@ import { SOCIAL_PLACEHOLDER_COPY } from "@/constants/content";
 export default function SocialLoginPlaceholderScreen() {
   return (
     <Screen>
-      <Heading>Social Login</Heading>
+      <Heading>{SOCIAL_PLACEHOLDER_COPY.title}</Heading>
       <BodyText>{SOCIAL_PLACEHOLDER_COPY.description}</BodyText>
       <Card>
-        <Subheading>WeChat</Subheading>
-        <BodyText>The entry is reserved, but the first version does not fake a successful OAuth flow.</BodyText>
+        <Subheading>微信登录</Subheading>
+        <BodyText>入口已预留，后续接入正式授权后即可使用。</BodyText>
       </Card>
       <Card>
-        <Subheading>QQ</Subheading>
-        <BodyText>This path stays in placeholder mode until the real code exchange is wired.</BodyText>
+        <Subheading>QQ 登录</Subheading>
+        <BodyText>当前版本暂未开放，请先使用手机号登录。</BodyText>
       </Card>
-      <Button title="Back To Login" tone="ghost" onPress={() => router.back()} />
+      <Button title="返回登录" tone="ghost" onPress={() => router.back()} />
     </Screen>
   );
 }

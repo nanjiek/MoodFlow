@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timedelta
+from urllib import error as urlerror
+from urllib import request as urlrequest
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.conf import settings
@@ -25,6 +28,18 @@ def _reminder_retry_delay_seconds() -> int:
     return int(getattr(settings, "REMINDER_RETRY_DELAY_SECONDS", 300))
 
 
+def _expo_push_timeout_seconds() -> int:
+    return int(getattr(settings, "EXPO_PUSH_TIMEOUT_SECONDS", 10))
+
+
+def _expo_push_api_url() -> str:
+    return str(getattr(settings, "EXPO_PUSH_API_URL", "https://exp.host/--/api/v2/push/send"))
+
+
+def _is_expo_push_token(token: str) -> bool:
+    return token.startswith("ExponentPushToken[") or token.startswith("ExpoPushToken[")
+
+
 class FirebasePushService:
     def send_message(self, *, token: str, title: str, body: str, data: dict | None = None) -> dict:
         raise NotImplementedError
@@ -44,7 +59,57 @@ class MockFirebasePushService(FirebasePushService):
         return response
 
 
-def get_push_service() -> FirebasePushService:
+def _send_expo_push_request(message: dict) -> dict:
+    payload = json.dumps(message).encode("utf-8")
+    request = urlrequest.Request(
+        _expo_push_api_url(),
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, deflate",
+        },
+        method="POST",
+    )
+    try:
+        with urlrequest.urlopen(request, timeout=_expo_push_timeout_seconds()) as response:
+            raw_body = response.read().decode("utf-8")
+    except urlerror.HTTPError as exc:
+        raw_body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Expo push request failed with HTTP {exc.code}: {raw_body}") from exc
+    except urlerror.URLError as exc:
+        raise RuntimeError(f"Expo push request failed: {exc.reason}") from exc
+
+    try:
+        parsed = json.loads(raw_body)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Expo push returned invalid JSON: {raw_body}") from exc
+    return parsed
+
+
+class ExpoPushService(FirebasePushService):
+    def send_message(self, *, token: str, title: str, body: str, data: dict | None = None) -> dict:
+        message = {
+            "to": token,
+            "title": title,
+            "body": body,
+            "data": data or {},
+            "sound": "default",
+        }
+        parsed = _send_expo_push_request(message)
+        result = parsed.get("data")
+        if isinstance(result, dict) and result.get("status") == "error":
+            raise RuntimeError(result.get("message", "Expo push returned an error ticket."))
+        return {
+            "provider": "expo",
+            "ticket": result,
+            "raw": parsed,
+        }
+
+
+def get_push_service(token: str = "") -> FirebasePushService:
+    if token and _is_expo_push_token(token):
+        return ExpoPushService()
     if _firebase_mock_enabled():
         return MockFirebasePushService()
     raise RuntimeError("Real Firebase push requires firebase_admin integration and credentials configuration.")
@@ -144,8 +209,8 @@ def trigger_user_reminder(user: AppUser) -> list[ReminderDispatchLog]:
 
     title, body, extra = build_reminder_message(user)
     logs: list[ReminderDispatchLog] = []
-    push_service = get_push_service()
     for device in devices:
+        push_service = get_push_service(device.token)
         log = ReminderDispatchLog.objects.create(
             user=user,
             device=device,
@@ -206,7 +271,6 @@ def dispatch_due_reminders(*, now: datetime | None = None, limit: int = 100, dry
 
 
 def retry_failed_dispatches(limit: int = 20) -> int:
-    push_service = get_push_service()
     now = timezone.now()
     queryset = ReminderDispatchLog.objects.select_related("device", "user").filter(
         status=ReminderDispatchLog.Status.RETRYING,
@@ -221,6 +285,7 @@ def retry_failed_dispatches(limit: int = 20) -> int:
             processed += 1
             continue
         try:
+            push_service = get_push_service(log.device.token)
             response = push_service.send_message(
                 token=log.device.token,
                 title=log.payload.get("title", ""),
@@ -275,8 +340,8 @@ def build_reminder_message(user: AppUser) -> tuple[str, str, dict]:
     preferred_types = get_or_create_reminder_preference(user).preferred_content_types
     suggestions = recommend_contents(label, limit=1, preferred_types=preferred_types)
     suggestion = suggestions[0] if suggestions else None
-    title = "MoodFlow Reminder"
-    body = suggestion.body if suggestion and suggestion.body else "Take a moment for yourself and record how you feel right now."
+    title = "MoodFlow 提醒"
+    body = suggestion.body if suggestion and suggestion.body else "留一点时间给自己，记录一下此刻的心情。"
     extra = {
         "emotion_label": label,
         "content_type": suggestion.content_type if suggestion else "",

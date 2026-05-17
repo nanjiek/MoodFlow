@@ -64,7 +64,7 @@ PYTHONPATH=. python -m model_service.training.dataset_builder \
 
 PYTHONPATH=. python -m model_service.training.train_baseline \
   --dataset data/processed/moodflow_emotions.csv \
-  --output-dir model_service/artifacts/baseline
+  --output-dir model_service/artifacts/baseline-clean-v4
 ```
 
 如果走 Makefile 编排，直接执行 `make train-baseline`。
@@ -119,4 +119,4 @@ make healthcheck
 
 ## 7. 深度学习脚本说明
 
-`model_service/training/train_transformer.py` 可用于后续 GPU 环境微调 `bert-base-chinese` 等模型。当前 FastAPI 推理服务默认加载 `model_service/artifacts/baseline/model.joblib`，不会直接加载 Hugging Face `best/` 目录。
+`model_service/training/train_transformer.py` 可用于后续 GPU 环境微调 `bert-base-chinese` 等模型。当前 FastAPI 推理服务默认加载 `model_service/artifacts/baseline-clean-v4/model.joblib`，不会直接加载 Hugging Face `best/` 目录。
