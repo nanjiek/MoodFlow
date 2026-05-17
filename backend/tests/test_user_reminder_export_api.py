@@ -16,6 +16,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from emotions.models import EmotionAnalysis, EmotionRecord, EmotionTag, ReminderDispatchLog
+from emotions import reminders
 from emotions.reminders import dispatch_due_reminders
 from emotions.security import prepare_text_for_storage
 
@@ -188,6 +189,49 @@ def test_dispatch_reminders_command_runs_retry_flow(
     assert retry_log.status == ReminderDispatchLog.Status.SENT
     assert retry_log.attempt_count == 2
     assert "retried=1" in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_trigger_reminder_uses_expo_push_for_expo_tokens(
+    api_client: APIClient,
+    auth_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_send(message: dict) -> dict:
+        captured["message"] = message
+        return {"data": {"status": "ok", "id": "expo-ticket-001"}}
+
+    monkeypatch.setattr(reminders, "_send_expo_push_request", fake_send)
+
+    register_device = api_client.post(
+        "/api/emotions/devices/",
+        {"token": "ExponentPushToken[demo-token]", "platform": "android", "device_id": "expo-go-device"},
+        format="json",
+        **auth_headers,
+    )
+    assert register_device.status_code == 200
+
+    preference_update = api_client.patch(
+        "/api/emotions/reminder-preferences/",
+        {"enabled": True},
+        format="json",
+        **auth_headers,
+    )
+    assert preference_update.status_code == 200
+
+    trigger_response = api_client.post(
+        "/api/emotions/reminders/trigger/",
+        format="json",
+        **auth_headers,
+    )
+    assert trigger_response.status_code == 200
+    trigger_payload = trigger_response.json()["data"]
+    assert len(trigger_payload) == 1
+    assert trigger_payload[0]["status"] == "sent"
+    assert trigger_payload[0]["response_payload"]["provider"] == "expo"
+    assert captured["message"]["to"] == "ExponentPushToken[demo-token]"
 
 
 @pytest.mark.django_db

@@ -15,7 +15,7 @@ RUN pip install -r /tmp/requirements.txt
 
 COPY . /app/model_service
 
-ENV MODEL_DIR=/app/model_service/artifacts/baseline \
+ENV MODEL_DIR=/app/model_service/artifacts/baseline-clean-v4 \
     PYTHONPATH=/app
 
 EXPOSE 8010

@@ -61,7 +61,7 @@ data/processed/moodflow_emotions.csv
 已训练 TF-IDF + Logistic Regression baseline 模型：
 
 ```text
-model_service/artifacts/baseline/model.joblib
+model_service/artifacts/baseline-clean-v4/model.joblib
 ```
 
 模型版本：
@@ -196,7 +196,7 @@ model_service/training/train_transformer.py
 该脚本可用于后续 GPU 环境微调 `bert-base-chinese` 等中文预训练模型。当前 FastAPI 推理服务默认加载：
 
 ```text
-model_service/artifacts/baseline/model.joblib
+model_service/artifacts/baseline-clean-v4/model.joblib
 ```
 
 暂未直接加载 BERT/Hugging Face 训练产物。如需使用深度学习模型上线，需要额外补充 serving adapter。

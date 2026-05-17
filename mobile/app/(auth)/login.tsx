@@ -56,7 +56,7 @@ export default function LoginScreen() {
         </Link>
       </View>
       <Pressable style={styles.socialEntry} onPress={() => router.push("/(auth)/social")}>
-        <BodyText style={{ color: colors.brandDeep }}>微信 / QQ 登录入口预留</BodyText>
+        <BodyText style={{ color: colors.brandDeep }}>查看社交登录说明</BodyText>
       </Pressable>
     </Screen>
   );

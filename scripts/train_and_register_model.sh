@@ -7,7 +7,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PYTHON_BIN="${PYTHON:-python3}"
 RAW_DATA_DIR="${RAW_DATA_DIR:-data/raw}"
 DATASET_PATH="${DATASET_PATH:-data/processed/moodflow_emotions.csv}"
-MODEL_OUTPUT_DIR="${MODEL_OUTPUT_DIR:-model_service/artifacts/baseline}"
+MODEL_OUTPUT_DIR="${MODEL_OUTPUT_DIR:-model_service/artifacts/baseline-clean-v4}"
 MODEL_METADATA_PATH="${MODEL_METADATA_PATH:-${MODEL_OUTPUT_DIR}/metadata.json}"
 
 BACKEND_DIR="${BACKEND_DIR:-${PROJECT_ROOT}/backend}"

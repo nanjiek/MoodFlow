@@ -3,9 +3,15 @@
     "name": "MoodFlow",
     "slug": "moodflow-mobile",
     "scheme": "moodflow",
-    "version": "0.1.0",
+    "version": "0.1.2",
+    "icon": "./assets/branding/icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/branding/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFF9F4"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -13,16 +19,40 @@
       "typedRoutes": true
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-notifications",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true
     },
     "android": {
-      "package": "com.moodflow.mobile"
+      "package": "com.moodflow.mobile",
+      "versionCode": 3,
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/branding/adaptive-icon.png",
+        "backgroundColor": "#FFF9F4"
+      }
     },
     "web": {
       "bundler": "metro"
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "693a5f09-4680-46ac-b083-c202f9464cee"
+      }
+    },
+    "owner": "niujl"
   }
 }

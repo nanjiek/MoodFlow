@@ -40,7 +40,7 @@ export default function RegisterScreen() {
 
   return (
     <Screen>
-      <BrandHero title="先把你的情绪空间打开。" description="注册成功后会直接进入首页，开始第一条记录。" />
+      <BrandHero title="打开你的情绪空间。" description="注册成功后会直接进入首页，开始第一条记录。" />
       <Input label="昵称" value={nickname} onChangeText={setNickname} error={errors.nickname} />
       <Input label="手机号" value={phone} onChangeText={setPhone} keyboardType="phone-pad" error={errors.phone} />
       <Input label="密码" value={password} onChangeText={setPassword} secureTextEntry error={errors.password} />

@@ -7,11 +7,13 @@ export function InlineAlert({
   tone = "info",
 }: {
   message: string;
-  tone?: "info" | "warning" | "danger";
+  tone?: "info" | "success" | "warning" | "danger";
 }) {
   const palette =
     tone === "danger"
       ? { bg: "#FDE8E8", fg: colors.danger }
+      : tone === "success"
+        ? { bg: "#EAF6F0", fg: colors.success }
       : tone === "warning"
         ? { bg: "#FFF2DF", fg: colors.warning }
         : { bg: "#EEF4FA", fg: "#37566F" };

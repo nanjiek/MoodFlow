@@ -56,23 +56,23 @@ export default function RecordDetailScreen() {
   if (!record) {
     return (
       <Screen>
-        <Heading>Record Missing</Heading>
-        <BodyText>This record may have been deleted or has not been loaded into the current view yet.</BodyText>
+        <Heading>记录暂不可用</Heading>
+        <BodyText>这条记录可能已被删除，或暂时还没有加载完成。</BodyText>
       </Screen>
     );
   }
 
   return (
     <Screen>
-      <Heading>Edit Record</Heading>
-      <BodyText>The first version lets people update text and encryption while still sending the backend label code on save.</BodyText>
-      <Input label="Record Text" multiline value={text} onChangeText={setText} />
+      <Heading>编辑记录</Heading>
+      <BodyText>你可以更新这条记录的文字内容，也可以调整是否加密保存。</BodyText>
+      <Input label="记录内容" multiline value={text} onChangeText={setText} />
       <Card style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <BodyText>Keep Encrypted</BodyText>
+        <BodyText>保持加密</BodyText>
         <Switch value={isEncrypted} onValueChange={setIsEncrypted} />
       </Card>
-      <Button title="Save Changes" onPress={() => updateMutation.mutate()} loading={updateMutation.isPending} />
-      <Button title="Open Analysis" tone="soft" onPress={() => router.push(`/(app)/analysis/${record.id}`)} />
+      <Button title="保存修改" onPress={() => updateMutation.mutate()} loading={updateMutation.isPending} />
+      <Button title="查看分析结果" tone="soft" onPress={() => router.push(`/(app)/analysis/${record.id}`)} />
     </Screen>
   );
 }

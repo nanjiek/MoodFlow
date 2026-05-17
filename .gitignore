@@ -1,3 +1,14 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.venv/
+.env
+tmp/
+
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/.env
+mobile/.env.*
+!mobile/.env.example

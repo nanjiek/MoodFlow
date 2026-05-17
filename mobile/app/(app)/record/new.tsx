@@ -52,7 +52,7 @@ export default function RecordCreateScreen() {
   return (
     <Screen>
       <Heading>记录此刻情绪</Heading>
-      <BodyText>首版按 P0 方向做成 30 秒内可完成的一次轻量记录。</BodyText>
+      <BodyText>先记下这一刻最明显的感受，之后随时都能回来补充。</BodyText>
       <Card>
         <View style={styles.grid}>
           {EMOTION_OPTIONS.map((item) => (
@@ -69,7 +69,7 @@ export default function RecordCreateScreen() {
         </View>
       </Card>
       <Input label="一句话记录" multiline value={text} onChangeText={setText} placeholder="今天让你最有感觉的一刻是什么？" />
-      <Input label="可选 emoji id" value={emojiId} onChangeText={setEmojiId} placeholder="例如 smile-1" />
+      <Input label="表情标识（选填）" value={emojiId} onChangeText={setEmojiId} placeholder="例如 smile-1" />
       <Card style={styles.toggleRow}>
         <BodyText>开启加密记录</BodyText>
         <Switch value={isEncrypted} onValueChange={setIsEncrypted} />
